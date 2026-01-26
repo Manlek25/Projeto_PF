@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Consulta de Processos - Duque de Caxias</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6f9; display:flex; flex-direction:column; align-items:center; padding:40px; }
+    h1 { color:#004aad; margin-bottom:20px; }
+    input, select { padding:10px; width:360px; font-size:16px; border-radius:6px; border:1px solid #ccc; margin-bottom:10px; text-align:center; }
+    button { padding:10px 20px; font-size:16px; background:#004aad; color:#fff; border:none; border-radius:6px; cursor:pointer; margin:5px;}
+    button:disabled { opacity:0.6; cursor:not-allowed; }
+    button:hover:not(:disabled){ background:#00327a; }
+    .info { font-size:14px; color:#444; margin-top:10px; text-align:center; width:420px; }
+
+    .modal { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:#fff; padding:20px 25px; border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,0.25); display:none; z-index:1000; width:420px; text-align:center;}
+    .modal.show { display:block; }
+    .spinner { border:4px solid #f3f3f3; border-top:4px solid #004aad; border-radius:50%; width:36px; height:36px; animation:spin 1s linear infinite; display:inline-block; vertical-align:middle; margin-right:10px;}
+    @keyframes spin { 100% { transform:rotate(360deg); } }
+    .progress-container { width:100%; background:#ccc; border-radius:6px; height:14px; margin-top:15px; }
+    .progress-bar { height:14px; width:0%; background:#004aad; border-radius:6px; transition:width 0.3s; }
+    .progressText { margin-top:10px; font-size:14px; color:#333; }
+    .errorBox { background:#fee; color:#900; padding:8px; border-radius:6px; margin-top:10px; text-align:left; max-height:120px; overflow:auto; }
+    .search-section { margin-top:30px; border-top:1px solid #ddd; padding-top:20px; width:420px; text-align:center;}
+    .row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+    #cancelButton { margin-top:15px; background:#d9534f; }
+    #cancelButton:hover { background:#b52b27; }
+
+    .toggle-wrapper { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+    .toggle-label { font-size:15px; color:#333; }
+    .switch { position:relative; display:inline-block; width:50px; height:26px; }
+    .switch input { opacity:0; width:0; height:0; }
+    .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.4s; border-radius:26px; }
+    .slider:before { position:absolute; content:""; height:20px; width:20px; left:3px; bottom:3px; background-color:white; transition:.4s; border-radius:50%; }
+    input:checked + .slider { background-color:#004aad; }
+    input:checked + .slider:before { transform:translateX(24px); }
+  </style>
+</head>
+<body>
+  <h1>Consulta Pública - Duque de Caxias</h1>
+
+  <div class="toggle-wrapper">
+    <label class="toggle-label">🔹 Apenas o primeiro movimento</label>
+    <label class="switch">
+      <input type="checkbox" id="firstOnlyToggle">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <input type="text" id="codigo" placeholder="Ex: 010/002005/2025" maxlength="15" />
+  <div>
+    <button id="btnOne" onclick="buscarUnico()">Buscar este processo</button>
+    <button id="btnThousand" onclick="buscarMil()">Buscar 1000 processos</button>
+  </div>
+
+  <div class="search-section">
+    <h3>🔍 Buscar por Nome</h3>
+    <input type="text" id="nome" placeholder="Ex: Rede Br" />
+    <div class="row">
+      <input type="text" id="prefixo" placeholder="Prefixo ex: 010" style="width:80px;" />
+      <input type="number" id="inicio" placeholder="Início" style="width:80px;" />
+      <input type="number" id="fim" placeholder="Fim" style="width:80px;" />
+      <input type="number" id="ano" placeholder="Ano" style="width:80px;" />
+    </div>
+    <button onclick="buscarPorNome()">Buscar por Nome</button>
+  </div>
+
+  <div class="info">
+    <p>Digite o intervalo completo (ex: <b>010 2000-4000 2025</b>).</p>
+  </div>
+
+  <div id="modal" class="modal">
+    <div><span class="spinner"></span><strong id="modalTitle">Buscando...</strong></div>
+    <div class="progress-container"><div id="progressBar" class="progress-bar"></div></div>
+    <div class="progressText" id="progressText">Aguardando início...</div>
+    <div id="errorArea"></div>
+    <button id="cancelButton" onclick="cancelarBusca()">Cancelar busca</button>
+  </div>
+
+  <script>
+    const input = document.getElementById('codigo');
+    const btnOne = document.getElementById('btnOne');
+    const btnThousand = document.getElementById('btnThousand');
+    const cancelButton = document.getElementById('cancelButton');
+    const toggle = document.getElementById('firstOnlyToggle');
+    let currentEventSource = null;
+
+    input.addEventListener('input', e => {
+      let v = e.target.value.replace(/\D/g, '');
+      if (v.length > 3 && v.length <= 9) v = v.replace(/^(\d{3})(\d+)/, '$1/$2');
+      else if (v.length > 9) v = v.replace(/^(\d{3})(\d{6})(\d+)/, '$1/$2/$3');
+      e.target.value = v;
+    });
+
+    function showModal(title, text) {
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('progressText').textContent = text || '';
+      document.getElementById('errorArea').innerHTML = '';
+      document.getElementById('progressBar').style.width = '0%';
+      document.getElementById('modal').classList.add('show');
+      btnOne.disabled = btnThousand.disabled = true;
+      cancelButton.disabled = false;
+    }
+
+    function hideModal() {
+      document.getElementById('modal').classList.remove('show');
+      btnOne.disabled = btnThousand.disabled = false;
+    }
+
+    function cancelarBusca() {
+      const text = document.getElementById('progressText');
+      cancelButton.disabled = true;
+      text.textContent = '⏹ Cancelando busca...';
+      if (currentEventSource) {
+        currentEventSource.close();
+        currentEventSource = null;
+      }
+      fetch('/api/cancel', { method: 'POST' }); // ✅ cancela também no backend
+      setTimeout(hideModal, 1500);
+    }
+
+    async function baixarArquivo(url, nome) {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = nome;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function extrairDadosCodigo(codigo) {
+      const limpo = codigo.replace(/\D/g, '');
+      const prefix = limpo.substring(0, 3);
+      const num = parseInt(limpo.substring(3, 9), 10);
+      const year = limpo.slice(-4);
+      return { prefix, num, year };
+    }
+
+    function iniciarProgresso(evt, fileName) {
+      if (currentEventSource) currentEventSource.close();
+      currentEventSource = evt;
+      const bar = document.getElementById('progressBar');
+      const text = document.getElementById('progressText');
+      const errorArea = document.getElementById('errorArea');
+      const start = Date.now();
+
+      evt.addEventListener('progress', e => {
+        const { percent } = JSON.parse(e.data);
+        bar.style.width = `${percent}%`;
+        const elapsed = (Date.now() - start) / 1000;
+        const eta = percent > 0 ? (elapsed / percent) * (100 - percent) : 0;
+        const min = Math.floor(eta / 60), sec = Math.floor(eta % 60);
+        text.textContent = `${percent}% concluído — restante: ~${min}m ${sec}s`;
+      });
+
+      // ✅ NOVO: Captura falhas de conexão da Prefeitura
+      evt.addEventListener('error', e => {
+        const data = JSON.parse(e.data);
+        const msg = data.warning || 'Falha desconhecida.';
+        errorArea.innerHTML += `<div class='errorBox'>⚠️ ${msg}</div>`;
+      });
+
+      evt.addEventListener('done', async e => {
+        const data = JSON.parse(e.data);
+        evt.close(); currentEventSource = null;
+
+        if (data.error) {
+          text.textContent = '❌ ' + data.error;
+          setTimeout(hideModal, 3000);
+          return;
+        }
+
+        bar.style.width = '100%';
+        text.textContent = '✅ Gerando download...';
+        try {
+          const fileUrl = data.file.startsWith("http")
+            ? data.file
+            : `${window.location.origin}${data.file}`;
+          await baixarArquivo(fileUrl, fileName);
+          text.textContent = '📁 Download iniciado!';
+        } catch (err) {
+          text.textContent = '⚠️ Erro ao baixar: ' + err.message;
+        }
+        setTimeout(hideModal, 4000);
+      });
+
+      evt.onerror = () => {
+        text.textContent = '⚠️ Conexão perdida.';
+        evt.close(); currentEventSource = null;
+        setTimeout(hideModal, 3000);
+      };
+    }
+
+    function buscarUnico() {
+      const codigo = input.value.trim();
+      if (!codigo) return alert('Digite o número do processo.');
+      const firstOnly = toggle.checked ? "true" : "false";
+      showModal('Buscando processo único', codigo);
+      fetch(`/api/process?numero=${encodeURIComponent(codigo)}&firstOnly=${firstOnly}`)
+        .then(resp => {
+          if (!resp.ok) throw new Error('Erro na busca.');
+          return baixarArquivo(resp.url, `processo_${codigo}.xlsx`);
+        })
+        .then(() => document.getElementById('progressText').textContent = '✅ Concluído.')
+        .catch(err => document.getElementById('errorArea').innerHTML = `<div class='errorBox'>${err}</div>`)
+        .finally(() => setTimeout(hideModal, 2500));
+    }
+
+    function buscarMil() {
+      const codigo = input.value.trim();
+      if (!codigo) return alert('Digite o número base do processo.');
+      const { prefix, num, year } = extrairDadosCodigo(codigo);
+      const start = num, end = num + 999;
+      const firstOnly = toggle.checked ? "true" : "false";
+      showModal('Buscando 1000 processos', `Faixa ${start}-${end}`);
+      const evt = new EventSource(`/api/process/batch?prefix=${prefix}&start=${start}&end=${end}&year=${year}&firstOnly=${firstOnly}`);
+      iniciarProgresso(evt, `processos_${prefix}_${year}.xlsx`);
+    }
+
+    function buscarPorNome() {
+      const nome = document.getElementById('nome').value.trim();
+      const prefix = document.getElementById('prefixo').value.trim();
+      const start = parseInt(document.getElementById('inicio').value) || 1;
+      const end = parseInt(document.getElementById('fim').value) || 1000;
+      const year = document.getElementById('ano').value.trim();
+      const firstOnly = toggle.checked ? "true" : "false";
+
+      if (!nome) return alert('Digite um nome para buscar.');
+      if (!prefix || !year) return alert('Informe prefixo e ano.');
+
+      if (currentEventSource) { currentEventSource.close(); currentEventSource = null; }
+
+      showModal(`Buscando por nome "${nome}"`, `Faixa ${start}-${end}`);
+      const evt = new EventSource(`/api/process/searchByName?prefix=${prefix}&start=${start}&end=${end}&year=${year}&nome=${encodeURIComponent(nome)}&firstOnly=${firstOnly}`);
+      iniciarProgresso(evt, `processos_${prefix}_${year}_nome.xlsx`);
+    }
+  </script>
+</body>
+</html>
