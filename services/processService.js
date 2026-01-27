@@ -100,13 +100,20 @@ export async function fetchProcessData(numeroProcesso, firstOnly = false, signal
       return null;
     }
 
-    // 🔴 Erros de conexão com o servidor
-    if (
+    // 🔴 Erros de conexão com o servidor (inclui timeout do axios)
+    const msg = String(err.message || "").toLowerCase();
+    const isTimeout =
+      err.code === "ECONNABORTED" ||
+      msg.includes("timeout") ||
+      msg.includes("timed out");
+
+    const isConnection =
       err.code === "ECONNREFUSED" ||
       err.code === "ETIMEDOUT" ||
       err.code === "ENOTFOUND" ||
-      err.message.includes("connect ECONNREFUSED")
-    ) {
+      msg.includes("connect econnrefused");
+
+    if (isTimeout || isConnection) {
       console.error(`❌ Falha de conexão no processo ${numeroProcesso}:`, err.message);
       return { __error: "CONNECTION_ERROR", numeroProcesso };
     }
@@ -133,6 +140,7 @@ function formatarMovimento(infoBase, cols) {
 
 // ============================================================
 // ⚙️ Busca em lote otimizada, contínua e com cancelamento
+// Estratégia B: 3 falhas seguidas => aborta tudo
 // ============================================================
 export async function fetchBatchProcesses(
   prefix,
@@ -141,48 +149,85 @@ export async function fetchBatchProcesses(
   year,
   onProgress = null,
   firstOnly = false,
-  signal = null
+  controller = null
 ) {
   const results = [];
   const CONCURRENCY = 20;
-  let active = new Set();
+  const active = new Set();
+
+  const signal = controller?.signal || null;
+
   let doneCount = 0;
+  let consecutiveConnErrors = 0;
+  const MAX_CONSECUTIVE_CONN_ERRORS = 3;
+
+  const total = end - start + 1;
 
   const launch = async (i) => {
     if (signal?.aborted) return;
+
     const numero = `${prefix.padStart(3, "0")}/${i.toString().padStart(6, "0")}/${year}`;
+
     const p = (async () => {
       const data = await fetchProcessData(numero, firstOnly, signal);
 
+      // Se foi cancelado, só sai
+      if (signal?.aborted) return;
+
       if (data && data.__error === "CONNECTION_ERROR") {
-        console.warn(`⚠️ Erro de conexão detectado em ${numero}`);
-        if (onProgress) onProgress(i - start + 1, end - start + 1, true); // true => erro de conexão
+        consecutiveConnErrors++;
+
+        // conta como "tentativa concluída" também
+        doneCount++;
+        if (onProgress) onProgress(doneCount, total, true);
+
+        // 3 falhas seguidas => consideramos o site fora/instável de verdade
+        if (consecutiveConnErrors >= MAX_CONSECUTIVE_CONN_ERRORS) {
+          // aborta tudo o que estiver em andamento
+          controller?.abort();
+          throw new Error("PREFEITURA_OFFLINE");
+        }
         return;
       }
 
+      // sucesso/resultado vazio => zera contador de falhas seguidas
+      consecutiveConnErrors = 0;
+
       if (data && data.length > 0) results.push(...data);
+
       doneCount++;
-      if (onProgress) onProgress(doneCount, end - start + 1);
+      if (onProgress) onProgress(doneCount, total, false);
     })();
+
     active.add(p);
     p.finally(() => active.delete(p));
   };
 
   for (let i = start; i <= end; i++) {
-    if (signal?.aborted) {
-      console.warn("🛑 Lote interrompido (AbortController ativado)");
-      break;
-    }
+    if (signal?.aborted) break;
 
     await launch(i);
 
     while (active.size >= CONCURRENCY) {
       if (signal?.aborted) break;
-      await Promise.race(active);
+      try {
+        await Promise.race(active);
+      } catch (e) {
+        if (e?.message === "PREFEITURA_OFFLINE") {
+          throw e;
+        }
+        // qualquer outro erro, ignora e segue
+      }
     }
   }
 
-  await Promise.allSettled(Array.from(active));
+  // espera o que sobrou (se não abortou)
+  try {
+    await Promise.allSettled(Array.from(active));
+  } catch {
+    // ignore
+  }
+
   return results;
 }
 

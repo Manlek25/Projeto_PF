@@ -1,130 +1,1048 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
-  <title>Consulta de Processos - Duque de Caxias</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Consulta de Processos • Duque de Caxias</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f4f6f9; display:flex; flex-direction:column; align-items:center; padding:40px; }
-    h1 { color:#004aad; margin-bottom:20px; }
-    input, select { padding:10px; width:360px; font-size:16px; border-radius:6px; border:1px solid #ccc; margin-bottom:10px; text-align:center; }
-    button { padding:10px 20px; font-size:16px; background:#004aad; color:#fff; border:none; border-radius:6px; cursor:pointer; margin:5px;}
-    button:disabled { opacity:0.6; cursor:not-allowed; }
-    button:hover:not(:disabled){ background:#00327a; }
-    .info { font-size:14px; color:#444; margin-top:10px; text-align:center; width:420px; }
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --brand: #1d4ed8;
+      --brand-2: #2563eb;
+      --danger: #dc2626;
+      --warn: #d97706;
+      --ok: #16a34a;
+      --shadow: 0 16px 40px rgba(2, 6, 23, .10);
+      --shadow-sm: 0 8px 24px rgba(2, 6, 23, .08);
+      --radius: 18px;
+      --radius-sm: 12px;
+    }
 
-    .modal { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background:#fff; padding:20px 25px; border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,0.25); display:none; z-index:1000; width:420px; text-align:center;}
-    .modal.show { display:block; }
-    .spinner { border:4px solid #f3f3f3; border-top:4px solid #004aad; border-radius:50%; width:36px; height:36px; animation:spin 1s linear infinite; display:inline-block; vertical-align:middle; margin-right:10px;}
-    @keyframes spin { 100% { transform:rotate(360deg); } }
-    .progress-container { width:100%; background:#ccc; border-radius:6px; height:14px; margin-top:15px; }
-    .progress-bar { height:14px; width:0%; background:#004aad; border-radius:6px; transition:width 0.3s; }
-    .progressText { margin-top:10px; font-size:14px; color:#333; }
-    .errorBox { background:#fee; color:#900; padding:8px; border-radius:6px; margin-top:10px; text-align:left; max-height:120px; overflow:auto; }
-    .search-section { margin-top:30px; border-top:1px solid #ddd; padding-top:20px; width:420px; text-align:center;}
-    .row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
-    #cancelButton { margin-top:15px; background:#d9534f; }
-    #cancelButton:hover { background:#b52b27; }
+    * {
+      box-sizing: border-box
+    }
 
-    .toggle-wrapper { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
-    .toggle-label { font-size:15px; color:#333; }
-    .switch { position:relative; display:inline-block; width:50px; height:26px; }
-    .switch input { opacity:0; width:0; height:0; }
-    .slider { position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#ccc; transition:.4s; border-radius:26px; }
-    .slider:before { position:absolute; content:""; height:20px; width:20px; left:3px; bottom:3px; background-color:white; transition:.4s; border-radius:50%; }
-    input:checked + .slider { background-color:#004aad; }
-    input:checked + .slider:before { transform:translateX(24px); }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--text);
+      background: radial-gradient(1200px 500px at 20% -10%, rgba(37, 99, 235, .15), transparent 60%),
+        radial-gradient(900px 500px at 90% 0%, rgba(29, 78, 216, .10), transparent 55%),
+        var(--bg);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 34px 18px 60px;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .title {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: clamp(20px, 2.5vw, 30px);
+      letter-spacing: -.02em;
+    }
+
+    .title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+      max-width: 68ch;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, .7);
+      box-shadow: var(--shadow-sm);
+      height: fit-content;
+      white-space: nowrap;
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 0 4px rgba(22, 163, 74, .12);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.35fr .65fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    @media (max-width: 980px) {
+      .grid {
+        grid-template-columns: 1fr
+      }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .card .top {
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: linear-gradient(to bottom, rgba(37, 99, 235, .06), transparent);
+    }
+
+    .card .top h2 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: .01em;
+    }
+
+    .card .top small {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .card .body {
+      padding: 18px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 10px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: transform .05s ease, background .2s ease, border-color .2s ease, color .2s ease;
+      user-select: none;
+    }
+
+    .tab:hover {
+      border-color: #cbd5e1;
+    }
+
+    .tab:active {
+      transform: translateY(1px);
+    }
+
+    .tab.active {
+      color: #0b1220;
+      border-color: rgba(37, 99, 235, .35);
+      background: rgba(37, 99, 235, .08);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .row.two {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .row.four {
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    @media (max-width: 620px) {
+      .row.two {
+        grid-template-columns: 1fr
+      }
+
+      .row.four {
+        grid-template-columns: 1fr 1fr
+      }
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 12px 12px;
+      font-size: 15px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      outline: none;
+      background: #fff;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: rgba(37, 99, 235, .6);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, .14);
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+      align-items: center;
+    }
+
+    .btn {
+      border: 1px solid transparent;
+      background: var(--brand);
+      color: white;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform .05s ease, filter .2s ease, background .2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn:hover {
+      filter: brightness(.97);
+      background: var(--brand-2);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    .btn.secondary {
+      background: #fff;
+      color: #0b1220;
+      border-color: var(--line);
+    }
+
+    .btn.secondary:hover {
+      background: #f8fafc;
+    }
+
+    .btn.danger {
+      background: var(--danger);
+    }
+
+    .btn.danger:hover {
+      filter: brightness(.97);
+    }
+
+    .hint {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, .6);
+      margin-top: 14px;
+    }
+
+    .toggle .left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .toggle .left strong {
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .toggle .left span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .switch {
+      position: relative;
+      width: 52px;
+      height: 30px;
+      flex: 0 0 auto;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: #cbd5e1;
+      border-radius: 999px;
+      transition: .25s;
+      cursor: pointer;
+    }
+
+    .slider:before {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      width: 22px;
+      height: 22px;
+      background: #fff;
+      border-radius: 50%;
+      transition: .25s;
+      box-shadow: 0 8px 18px rgba(2, 6, 23, .18);
+    }
+
+    .switch input:checked+.slider {
+      background: rgba(37, 99, 235, .92);
+    }
+
+    .switch input:checked+.slider:before {
+      transform: translateX(22px);
+    }
+
+    /* Side card */
+    .sideList {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .item {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(255, 255, 255, .7);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .item .meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .item .meta b {
+      font-size: 13px;
+    }
+
+    .item .meta small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .pill {
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      padding: 6px 8px;
+      border-radius: 999px;
+      background: #fff;
+      height: fit-content;
+    }
+
+    .link {
+      color: var(--brand);
+      text-decoration: none;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .link:hover {
+      text-decoration: underline
+    }
+
+    /* Modal */
+    .modalBack {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, .48);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 9999;
+    }
+
+    .modalBack.show {
+      display: flex;
+    }
+
+    .modal {
+      width: min(760px, 100%);
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(226, 232, 240, .8);
+      box-shadow: 0 24px 70px rgba(2, 6, 23, .35);
+      overflow: hidden;
+    }
+
+    .modalTop {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      background: linear-gradient(to bottom, rgba(37, 99, 235, .10), transparent);
+    }
+
+    .modalTop .left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 3px solid #e5e7eb;
+      border-top: 3px solid var(--brand);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      flex: 0 0 auto;
+    }
+
+    @keyframes spin {
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .modalTop h3 {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .modalTop small {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 52ch;
+    }
+
+    .modalBody {
+      padding: 16px;
+    }
+
+    .progressWrap {
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .progressBar {
+      height: 12px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      overflow: hidden;
+    }
+
+    .progressBar>div {
+      height: 12px;
+      width: 0%;
+      background: linear-gradient(90deg, rgba(37, 99, 235, .95), rgba(29, 78, 216, .75));
+      transition: width .25s ease;
+    }
+
+    .progressMeta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .log {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      max-height: 190px;
+      overflow: auto;
+      padding: 8px;
+      font-size: 12px;
+      color: #0b1220;
+    }
+
+    .log .l {
+      display: flex;
+      gap: 10px;
+      padding: 7px 8px;
+      border-radius: 10px;
+      align-items: flex-start;
+    }
+
+    .log .l+.l {
+      border-top: 1px dashed #eef2f7;
+    }
+
+    .tag {
+      font-weight: 700;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      color: var(--muted);
+      flex: 0 0 auto;
+    }
+
+    .tag.ok {
+      color: var(--ok);
+      border-color: rgba(22, 163, 74, .25);
+      background: rgba(22, 163, 74, .08);
+    }
+
+    .tag.warn {
+      color: var(--warn);
+      border-color: rgba(217, 119, 6, .25);
+      background: rgba(217, 119, 6, .08);
+    }
+
+    .tag.err {
+      color: var(--danger);
+      border-color: rgba(220, 38, 38, .25);
+      background: rgba(220, 38, 38, .08);
+    }
+
+    .msg {
+      line-height: 1.35;
+    }
+
+    .modalActions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow-sm);
+      padding: 12px 14px;
+      display: none;
+      gap: 10px;
+      align-items: flex-start;
+      max-width: 420px;
+      z-index: 99999;
+    }
+
+    .toast.show {
+      display: flex;
+    }
+
+    .toast .icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      background: rgba(22, 163, 74, .12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ok);
+      font-weight: 900;
+      flex: 0 0 auto;
+      margin-top: 1px;
+    }
+
+    .toast.err .icon {
+      background: rgba(220, 38, 38, .12);
+      color: var(--danger);
+    }
+
+    .toast .t b {
+      display: block;
+      font-size: 13px;
+    }
+
+    .toast .t span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
   </style>
 </head>
+
 <body>
-  <h1>Consulta Pública - Duque de Caxias</h1>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>Consulta Pública • Duque de Caxias</h1>
+        <p>
+          Consulte processos individuais, faça varredura em lote e gere relatórios em Excel automaticamente.
+          Ideal para auditoria rápida e controle interno.
+        </p>
+      </div>
+      <div class="badge" id="statusBadge">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">Pronto</span>
+      </div>
+    </header>
 
-  <div class="toggle-wrapper">
-    <label class="toggle-label">🔹 Apenas o primeiro movimento</label>
-    <label class="switch">
-      <input type="checkbox" id="firstOnlyToggle">
-      <span class="slider"></span>
-    </label>
-  </div>
+    <div class="grid">
+      <!-- MAIN -->
+      <div class="card">
+        <div class="top">
+          <div>
+            <h2>Consultas</h2>
+            <small>Escolha um modo e gere o Excel com um clique.</small>
+          </div>
+          <small id="miniInfo">Status do serviço: verificando…</small>
+        </div>
+        <div class="body">
 
-  <input type="text" id="codigo" placeholder="Ex: 010/002005/2025" maxlength="15" />
-  <div>
-    <button id="btnOne" onclick="buscarUnico()">Buscar este processo</button>
-    <button id="btnThousand" onclick="buscarMil()">Buscar 1000 processos</button>
-  </div>
+          <div class="tabs">
+            <button class="tab active" data-tab="single">🔹 Processo único</button>
+            <button class="tab" data-tab="batch">📦 Lote (1000)</button>
+            <button class="tab" data-tab="name">🔎 Por nome</button>
+          </div>
 
-  <div class="search-section">
-    <h3>🔍 Buscar por Nome</h3>
-    <input type="text" id="nome" placeholder="Ex: Rede Br" />
-    <div class="row">
-      <input type="text" id="prefixo" placeholder="Prefixo ex: 010" style="width:80px;" />
-      <input type="number" id="inicio" placeholder="Início" style="width:80px;" />
-      <input type="number" id="fim" placeholder="Fim" style="width:80px;" />
-      <input type="number" id="ano" placeholder="Ano" style="width:80px;" />
+          <div class="toggle">
+            <div class="left">
+              <strong>Apenas o primeiro movimento</strong>
+              <span>Mais rápido e leve (pega só o movimento mais recente).</span>
+            </div>
+            <label class="switch" title="firstOnly">
+              <input type="checkbox" id="firstOnlyToggle">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <!-- SINGLE -->
+          <section id="tab-single" class="tabPane" style="margin-top:14px;">
+            <div class="row">
+              <label>
+                Número do processo
+                <input type="text" id="codigo" placeholder="Ex: 010/002005/2025" maxlength="15" inputmode="numeric" />
+              </label>
+            </div>
+            <div class="actions">
+              <button class="btn" id="btnOne" onclick="buscarUnico()">
+                ⬇️ Gerar Excel do processo
+              </button>
+              <!-- <button class="btn secondary" onclick="preencherExemplo()">✨ Preencher exemplo</button> -->
+              <button class="btn secondary btnLimpar" onclick="limparCampos()" disabled>🧹 Limpar</button>
+            </div>
+            <div class="hint">
+              Dica: você pode colar só os números (ex: <b>0100020052025</b>) que eu formato automaticamente.
+            </div>
+          </section>
+
+          <!-- BATCH -->
+          <section id="tab-batch" class="tabPane" style="margin-top:14px; display:none;">
+            <div class="row">
+              <label>
+                Número base (para extrair prefixo, início e ano)
+                <input type="text" id="codigoBatch" placeholder="Ex: 010/002005/2025" maxlength="15"
+                  inputmode="numeric" />
+              </label>
+            </div>
+            <div class="actions">
+              <button class="btn" id="btnThousand" onclick="buscarMil()">
+                🚀 Buscar 1000 processos
+              </button>
+              <!-- <button class="btn secondary" onclick="copiarDoUnico()">📋 Copiar do campo acima</button> -->
+              <button class="btn secondary btnLimpar" onclick="limparCampos()" disabled>🧹 Limpar</button>
+            </div>
+            <div class="hint">
+              O sistema vai consultar <b>1000</b> processos a partir do número informado (ex: 2005 → 2005 a 3004).
+            </div>
+          </section>
+
+          <!-- NAME -->
+          <section id="tab-name" class="tabPane" style="margin-top:14px; display:none;">
+            <div class="row">
+              <label>
+                Nome (Interessado/Requerente)
+                <input type="text" id="nome" placeholder='Ex: "Rede Br"' />
+              </label>
+            </div>
+            <div class="row four">
+              <label>Prefixo
+                <input type="text" id="prefixo" placeholder="010" maxlength="3" inputmode="numeric" />
+              </label>
+              <label>Início
+                <input type="number" id="inicio" placeholder="1" min="1" />
+              </label>
+              <label>Fim
+                <input type="number" id="fim" placeholder="1000" min="1" />
+              </label>
+              <label>Ano
+                <input type="number" id="ano" placeholder="2025" min="2000" max="2100" />
+              </label>
+            </div>
+            <div class="actions">
+              <button class="btn" onclick="buscarPorNome()">
+                🔎 Buscar por nome
+              </button>
+              <button class="btn secondary" onclick="preencherFaixaPadrao()">⚙️ Faixa padrão</button>
+              <button class="btn secondary btnLimpar" onclick="limparCampos()" disabled>🧹 Limpar</button>
+            </div>
+            <div class="hint">
+              Você pode ajustar a faixa para reduzir o tempo. Ex: 1–300 ao invés de 1–1000.
+            </div>
+          </section>
+
+        </div>
+      </div>
+
+      <!-- SIDE -->
+      <div class="card">
+        <div class="top">
+          <div>
+            <h2>Histórico</h2>
+            <small>Últimas consultas (salvas no navegador).</small>
+          </div>
+          <small><a class="link" onclick="limparHistorico()">Limpar</a></small>
+        </div>
+        <div class="body">
+          <div class="sideList" id="historyList"></div>
+          <div class="hint" style="margin-top:10px">
+            Seus relatórios são gerados e baixados <b>automaticamente</b>. Eles ficam salvos na pasta de downloads do
+            seu navegador.
+          </div>
+        </div>
+      </div>
     </div>
-    <button onclick="buscarPorNome()">Buscar por Nome</button>
   </div>
 
-  <div class="info">
-    <p>Digite o intervalo completo (ex: <b>010 2000-4000 2025</b>).</p>
+  <!-- MODAL -->
+  <div class="modalBack" id="modalBack" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modalTop">
+        <div class="left">
+          <span class="spinner" id="spin"></span>
+          <div style="min-width:0">
+            <h3 id="modalTitle">Processando…</h3>
+            <small id="modalSub">Aguardando início…</small>
+          </div>
+        </div>
+        <button class="btn secondary" onclick="fecharModal()" id="closeBtn">Fechar</button>
+      </div>
+      <div class="modalBody">
+        <div class="progressWrap">
+          <div class="progressBar">
+            <div id="progressBar"></div>
+          </div>
+          <div class="progressMeta">
+            <span id="progressText">0%</span>
+            <span id="etaText">ETA: —</span>
+          </div>
+        </div>
+
+        <div class="log" id="log"></div>
+
+        <div class="modalActions">
+          <button class="btn danger" id="cancelButton" onclick="cancelarBusca()">⏹ Cancelar</button>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button class="btn secondary" onclick="copiarLog()">📋 Copiar log</button>
+            <!-- <button class="btn secondary" onclick="abrirExports()">📂 Abrir /exports</button> -->
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div id="modal" class="modal">
-    <div><span class="spinner"></span><strong id="modalTitle">Buscando...</strong></div>
-    <div class="progress-container"><div id="progressBar" class="progress-bar"></div></div>
-    <div class="progressText" id="progressText">Aguardando início...</div>
-    <div id="errorArea"></div>
-    <button id="cancelButton" onclick="cancelarBusca()">Cancelar busca</button>
+  <!-- TOAST -->
+  <div class="toast" id="toast">
+    <div class="icon" id="toastIcon">✓</div>
+    <div class="t">
+      <b id="toastTitle">Ok</b>
+      <span id="toastMsg">Tudo certo.</span>
+    </div>
   </div>
 
   <script>
+
+    // ===== Elements
     const input = document.getElementById('codigo');
+    const inputBatch = document.getElementById('codigoBatch');
     const btnOne = document.getElementById('btnOne');
     const btnThousand = document.getElementById('btnThousand');
     const cancelButton = document.getElementById('cancelButton');
     const toggle = document.getElementById('firstOnlyToggle');
+
+    const statusText = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusDot');
+
+    const modalBack = document.getElementById('modalBack');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalSub = document.getElementById('modalSub');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const etaText = document.getElementById('etaText');
+    const logEl = document.getElementById('log');
+    const closeBtn = document.getElementById('closeBtn');
+
+    const historyList = document.getElementById('historyList');
+
+    const toast = document.getElementById('toast');
+    const toastTitle = document.getElementById('toastTitle');
+    const toastMsg = document.getElementById('toastMsg');
+    const toastIcon = document.getElementById('toastIcon');
+
+    const limparBtns = Array.from(document.querySelectorAll(".btnLimpar"));
+
     let currentEventSource = null;
+    let modalLock = false;
 
-    input.addEventListener('input', e => {
-      let v = e.target.value.replace(/\D/g, '');
-      if (v.length > 3 && v.length <= 9) v = v.replace(/^(\d{3})(\d+)/, '$1/$2');
-      else if (v.length > 9) v = v.replace(/^(\d{3})(\d{6})(\d+)/, '$1/$2/$3');
-      e.target.value = v;
-    });
-
-    function showModal(title, text) {
-      document.getElementById('modalTitle').textContent = title;
-      document.getElementById('progressText').textContent = text || '';
-      document.getElementById('errorArea').innerHTML = '';
-      document.getElementById('progressBar').style.width = '0%';
-      document.getElementById('modal').classList.add('show');
-      btnOne.disabled = btnThousand.disabled = true;
-      cancelButton.disabled = false;
-    }
-
-    function hideModal() {
-      document.getElementById('modal').classList.remove('show');
-      btnOne.disabled = btnThousand.disabled = false;
-    }
-
-    function cancelarBusca() {
-      const text = document.getElementById('progressText');
-      cancelButton.disabled = true;
-      text.textContent = '⏹ Cancelando busca...';
-      if (currentEventSource) {
-        currentEventSource.close();
-        currentEventSource = null;
+    // ===== Helpers
+    function setStatus(kind, text) {
+      statusText.textContent = text;
+      if (kind === "ok") {
+        statusDot.style.background = "var(--ok)";
+        statusDot.style.boxShadow = "0 0 0 4px rgba(22,163,74,.12)";
+      } else if (kind === "warn") {
+        statusDot.style.background = "var(--warn)";
+        statusDot.style.boxShadow = "0 0 0 4px rgba(217,119,6,.12)";
+      } else if (kind === "err") {
+        statusDot.style.background = "var(--danger)";
+        statusDot.style.boxShadow = "0 0 0 4px rgba(220,38,38,.12)";
+      } else {
+        statusDot.style.background = "var(--brand)";
+        statusDot.style.boxShadow = "0 0 0 4px rgba(37,99,235,.14)";
       }
-      fetch('/api/cancel', { method: 'POST' }); // ✅ cancela também no backend
-      setTimeout(hideModal, 1500);
+    }
+
+    function toastShow(kind, title, msg) {
+      toast.classList.toggle("err", kind === "err");
+      toastIcon.textContent = kind === "err" ? "!" : "✓";
+      toastTitle.textContent = title;
+      toastMsg.textContent = msg;
+      toast.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => toast.classList.remove("show"), 3200);
+    }
+
+    function addLog(tag, msg) {
+      const line = document.createElement("div");
+      line.className = "l";
+      const t = document.createElement("span");
+      t.className = "tag " + (tag === "OK" ? "ok" : tag === "WARN" ? "warn" : tag === "ERR" ? "err" : "");
+      t.textContent = tag;
+      const m = document.createElement("div");
+      m.className = "msg";
+      m.textContent = msg;
+      line.appendChild(t);
+      line.appendChild(m);
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function resetModal() {
+      progressBar.style.width = "0%";
+      progressText.textContent = "0%";
+      etaText.textContent = "ETA: —";
+      logEl.innerHTML = "";
+      addLog("INFO", "Aguardando início…");
+    }
+
+    function showModal(title, subtitle) {
+      modalTitle.textContent = title;
+      modalSub.textContent = subtitle || "";
+      resetModal();
+      modalBack.classList.add("show");
+      modalBack.setAttribute("aria-hidden", "false");
+      modalLock = true;
+      closeBtn.disabled = true;
+      cancelButton.disabled = false;
+      btnOne.disabled = true;
+      if (btnThousand) btnThousand.disabled = true;
+      setStatus("warn", "Processando");
+    }
+
+    function fecharModal() {
+      if (modalLock) return;
+      modalBack.classList.remove("show");
+      modalBack.setAttribute("aria-hidden", "true");
+      btnOne.disabled = false;
+      if (btnThousand) btnThousand.disabled = false;
+      // status volta pro que o health-check indicar (ou "Pronto" se estiver ok)
+      checarPrefeitura().catch(() => { });
+    }
+
+    function unlockModal() {
+      modalLock = false;
+      closeBtn.disabled = false;
+    }
+
+    function formatarProcessoInput(el) {
+      el.addEventListener('input', e => {
+        let v = e.target.value.replace(/\D/g, '');
+        if (v.length > 3 && v.length <= 9) v = v.replace(/^(\d{3})(\d+)/, '$1/$2');
+        else if (v.length > 9) v = v.replace(/^(\d{3})(\d{6})(\d+)/, '$1/$2/$3');
+        e.target.value = v;
+      });
+    }
+    formatarProcessoInput(input);
+    formatarProcessoInput(inputBatch);
+
+    // function preencherExemplo() {
+    //   input.value = "010/002005/2025";
+    //   inputBatch.value = input.value;
+    //   toastShow("ok", "Exemplo", "Preenchi um exemplo no campo.");
+    // }
+
+    function limparCampos() {
+      const abaAtiva = document.querySelector(".tab.active")?.dataset.tab;
+
+      if (abaAtiva === "single") {
+        input.value = "";
+      }
+
+      if (abaAtiva === "batch") {
+        inputBatch.value = "";
+      }
+
+      if (abaAtiva === "name") {
+        document.getElementById('nome').value = "";
+        document.getElementById('prefixo').value = "";
+        document.getElementById('inicio').value = "";
+        document.getElementById('fim').value = "";
+        document.getElementById('ano').value = "";
+      }
+
+      atualizarEstadoLimpar();
+      toastShow("ok", "Limpo", "Campos da aba atual foram limpos.");
+    }
+
+    function atualizarEstadoLimpar() {
+      const abaAtiva = document.querySelector(".tab.active")?.dataset.tab;
+      let temConteudo = false;
+
+      if (abaAtiva === "single") {
+        temConteudo = input.value.trim().length > 0;
+      } else if (abaAtiva === "batch") {
+        temConteudo = inputBatch.value.trim().length > 0;
+      } else if (abaAtiva === "name") {
+        temConteudo = Boolean(
+          document.getElementById('nome').value.trim() ||
+          document.getElementById('prefixo').value.trim() ||
+          document.getElementById('inicio').value.trim() ||
+          document.getElementById('fim').value.trim() ||
+          document.getElementById('ano').value.trim()
+        );
+      }
+
+      // desabilita/habilita TODOS os botões Limpar (mas só a aba atual vai ter algo pra limpar)
+      limparBtns.forEach(btn => btn.disabled = !temConteudo);
+    }
+
+    // Atualiza automaticamente quando digita
+    [
+      input,
+      inputBatch,
+      document.getElementById('nome'),
+      document.getElementById('prefixo'),
+      document.getElementById('inicio'),
+      document.getElementById('fim'),
+      document.getElementById('ano'),
+    ].forEach(el => el?.addEventListener("input", atualizarEstadoLimpar));
+
+
+    function copiarDoUnico() {
+      inputBatch.value = input.value;
+      toastShow("ok", "Copiado", "Campo de lote preenchido com o mesmo valor.");
+    }
+
+    function preencherFaixaPadrao() {
+      document.getElementById('prefixo').value = "010";
+      document.getElementById('inicio').value = 1;
+      document.getElementById('fim').value = 1000;
+      document.getElementById('ano').value = new Date().getFullYear();
+      toastShow("ok", "Faixa", "Preenchi uma faixa padrão.");
     }
 
     async function baixarArquivo(url, nome) {
       const resp = await fetch(url);
+      if (!resp.ok) throw new Error("Falha ao baixar o arquivo.");
       const blob = await resp.blob();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = nome;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       URL.revokeObjectURL(a.href);
     }
 
@@ -136,28 +1054,54 @@
       return { prefix, num, year };
     }
 
+    function cancelarBusca() {
+      cancelButton.disabled = true;
+      addLog("WARN", "Cancelando busca…");
+      if (currentEventSource) {
+        currentEventSource.close();
+        currentEventSource = null;
+      }
+      fetch('/api/cancel', { method: 'POST' }).catch(() => { });
+      progressText.textContent = "Cancelando…";
+      etaText.textContent = "ETA: —";
+      unlockModal();
+      setTimeout(fecharModal, 900);
+      toastShow("ok", "Cancelado", "Busca cancelada.");
+    }
+
     function iniciarProgresso(evt, fileName) {
       if (currentEventSource) currentEventSource.close();
       currentEventSource = evt;
-      const bar = document.getElementById('progressBar');
-      const text = document.getElementById('progressText');
-      const errorArea = document.getElementById('errorArea');
+
       const start = Date.now();
+      addLog("INFO", "Conexão estabelecida. Iniciando busca…");
 
       evt.addEventListener('progress', e => {
         const { percent } = JSON.parse(e.data);
-        bar.style.width = `${percent}%`;
+        progressBar.style.width = `${percent}%`;
+        progressText.textContent = `${percent}%`;
         const elapsed = (Date.now() - start) / 1000;
         const eta = percent > 0 ? (elapsed / percent) * (100 - percent) : 0;
         const min = Math.floor(eta / 60), sec = Math.floor(eta % 60);
-        text.textContent = `${percent}% concluído — restante: ~${min}m ${sec}s`;
+        etaText.textContent = percent >= 100 ? "ETA: —" : `ETA: ~${min}m ${sec}s`;
       });
 
-      // ✅ NOVO: Captura falhas de conexão da Prefeitura
-      evt.addEventListener('error', e => {
-        const data = JSON.parse(e.data);
-        const msg = data.warning || 'Falha desconhecida.';
-        errorArea.innerHTML += `<div class='errorBox'>⚠️ ${msg}</div>`;
+      // backend envia: event: warn
+      evt.addEventListener('warn', e => {
+        try {
+          const data = JSON.parse(e.data);
+          const msg = data.warning || "Instabilidade na conexão.";
+          addLog("WARN", msg);
+        } catch {
+          addLog("WARN", "Instabilidade na conexão.");
+        }
+
+        // Reflete no topo (sem atropelar "Processando")
+        const mini = document.getElementById("miniInfo");
+        if (mini) mini.textContent = "Status do serviço: instável";
+        if (!modalBack.classList.contains("show")) {
+          setStatus("warn", "Prefeitura instável");
+        }
       });
 
       evt.addEventListener('done', async e => {
@@ -165,58 +1109,164 @@
         evt.close(); currentEventSource = null;
 
         if (data.error) {
-          text.textContent = '❌ ' + data.error;
-          setTimeout(hideModal, 3000);
+          addLog("ERR", data.error);
+
+          const msgLower = String(data.error || "").toLowerCase();
+          const mini = document.getElementById("miniInfo");
+
+          const parecePrefeitura =
+            msgLower.includes("prefeitura") ||
+            msgLower.includes("conectar") ||
+            msgLower.includes("conex") ||
+            msgLower.includes("timeout") ||
+            msgLower.includes("indispon") ||
+            msgLower.includes("demor") ||
+            msgLower.includes("responder");
+
+          if (parecePrefeitura) {
+            setStatus("warn", "Prefeitura indisponível");
+            if (mini) mini.textContent = "Status do serviço: Indisponível no momento";
+          } else {
+            setStatus("err", "Erro");
+            if (mini) mini.textContent = "Status do serviço: erro";
+          }
+
+          progressBar.style.width = "100%";
+          progressText.textContent = "Erro";
+          etaText.textContent = "ETA: —";
+          unlockModal();
+          toastShow("err", "Falhou", data.error);
           return;
         }
 
-        bar.style.width = '100%';
-        text.textContent = '✅ Gerando download...';
+        progressBar.style.width = "100%";
+        progressText.textContent = "100%";
+        etaText.textContent = "ETA: —";
+        addLog("OK", "Relatório gerado. Iniciando download…");
+
         try {
-          const fileUrl = data.file.startsWith("http")
-            ? data.file
-            : `${window.location.origin}${data.file}`;
+          const fileUrl = data.file.startsWith("http") ? data.file : `${window.location.origin}${data.file}`;
           await baixarArquivo(fileUrl, fileName);
-          text.textContent = '📁 Download iniciado!';
+          addLog("OK", "Download iniciado no navegador.");
+          toastShow("ok", "Download", "Seu Excel foi baixado.");
+          salvarHistorico({ mode: "Lote/Nome", label: fileName, extra: data.file });
+
+          setStatus("ok", "Concluído");
+          const mini = document.getElementById("miniInfo");
+          if (mini) mini.textContent = "Status do serviço: Normal";
         } catch (err) {
-          text.textContent = '⚠️ Erro ao baixar: ' + err.message;
+          addLog("ERR", "Erro ao baixar: " + err.message);
+          setStatus("err", "Erro");
+          const mini = document.getElementById("miniInfo");
+          if (mini) mini.textContent = "Status do serviço: erro";
+          toastShow("err", "Download falhou", err.message);
         }
-        setTimeout(hideModal, 4000);
+
+        unlockModal();
       });
 
       evt.onerror = () => {
-        text.textContent = '⚠️ Conexão perdida.';
+        addLog("WARN", "Conexão perdida.");
         evt.close(); currentEventSource = null;
-        setTimeout(hideModal, 3000);
+
+        const mini = document.getElementById("miniInfo");
+        if (mini) mini.textContent = "Status do serviço: instável";
+
+        // Não atropelar "Processando" (mas aqui normalmente já é durante processamento)
+        setStatus("warn", "Prefeitura instável");
+
+        unlockModal();
+        toastShow("err", "Conexão perdida", "Tente novamente. O site da prefeitura pode estar instável.");
       };
     }
 
-    function buscarUnico() {
-      const codigo = input.value.trim();
-      if (!codigo) return alert('Digite o número do processo.');
-      const firstOnly = toggle.checked ? "true" : "false";
-      showModal('Buscando processo único', codigo);
-      fetch(`/api/process?numero=${encodeURIComponent(codigo)}&firstOnly=${firstOnly}`)
-        .then(resp => {
-          if (!resp.ok) throw new Error('Erro na busca.');
-          return baixarArquivo(resp.url, `processo_${codigo}.xlsx`);
-        })
-        .then(() => document.getElementById('progressText').textContent = '✅ Concluído.')
-        .catch(err => document.getElementById('errorArea').innerHTML = `<div class='errorBox'>${err}</div>`)
-        .finally(() => setTimeout(hideModal, 2500));
+    function abrirExports() {
+      window.open("/exports", "_blank");
     }
 
-    function buscarMil() {
+    async function copiarLog() {
+      const text = Array.from(logEl.querySelectorAll(".l")).map(l => l.innerText).join("\n");
+      try {
+        await navigator.clipboard.writeText(text);
+        toastShow("ok", "Copiado", "Log copiado para a área de transferência.");
+      } catch {
+        toastShow("err", "Falhou", "Não consegui copiar automaticamente.");
+      }
+    }
+
+    // ===== Single
+    async function buscarUnico() {
       const codigo = input.value.trim();
-      if (!codigo) return alert('Digite o número base do processo.');
+      if (!codigo) return toastShow("err", "Atenção", "Digite o número do processo.");
+      const firstOnly = toggle.checked ? "true" : "false";
+
+      showModal("Buscando processo único", codigo);
+      addLog("INFO", `Consultando ${codigo}…`);
+
+      try {
+        const resp = await fetch(`/api/process?numero=${encodeURIComponent(codigo)}&firstOnly=${firstOnly}`);
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || "Erro na busca.");
+
+        const fileUrl = data.file.startsWith("http") ? data.file : `${window.location.origin}${data.file}`;
+        addLog("OK", "Processo encontrado. Iniciando download…");
+        await baixarArquivo(fileUrl, `processo_${codigo}.xlsx`);
+
+        addLog("OK", "Download iniciado no navegador.");
+        salvarHistorico({ mode: "Único", label: codigo, extra: data.file });
+
+        setStatus("ok", "Concluído");
+        const mini = document.getElementById("miniInfo");
+        if (mini) mini.textContent = "Status do serviço: Normal";
+
+        toastShow("ok", "Pronto", "Relatório do processo baixado.");
+
+        progressBar.style.width = "100%";
+        progressText.textContent = "100%";
+      } catch (err) {
+        addLog("ERR", err.message);
+
+        const msgLower = String(err.message || "").toLowerCase();
+        const mini = document.getElementById("miniInfo");
+        const parecePrefeitura =
+          msgLower.includes("prefeitura") ||
+          msgLower.includes("conectar") ||
+          msgLower.includes("conex") ||
+          msgLower.includes("timeout") ||
+          msgLower.includes("indispon") ||
+          msgLower.includes("demor") ||
+          msgLower.includes("responder");
+
+        if (parecePrefeitura) {
+          setStatus("warn", "Prefeitura Indisponível");
+          if (mini) mini.textContent = "Status do serviço: Indisponível no momento";
+        } else {
+          setStatus("err", "Erro");
+          if (mini) mini.textContent = "Status do serviço: erro";
+        }
+
+        toastShow("err", "Falhou", err.message);
+      } finally {
+        unlockModal();
+      }
+    }
+
+    // ===== Batch
+    function buscarMil() {
+      const codigo = (inputBatch.value || input.value).trim();
+      if (!codigo) return toastShow("err", "Atenção", "Digite o número base do processo.");
       const { prefix, num, year } = extrairDadosCodigo(codigo);
       const start = num, end = num + 999;
       const firstOnly = toggle.checked ? "true" : "false";
-      showModal('Buscando 1000 processos', `Faixa ${start}-${end}`);
+
+      showModal("Buscando 1000 processos", `Faixa ${start}-${end} • ${prefix}/${year}`);
+      addLog("INFO", `Iniciando lote ${prefix}/${year} (${start}-${end})…`);
+
       const evt = new EventSource(`/api/process/batch?prefix=${prefix}&start=${start}&end=${end}&year=${year}&firstOnly=${firstOnly}`);
-      iniciarProgresso(evt, `processos_${prefix}_${year}.xlsx`);
+      iniciarProgresso(evt, `processos_${prefix}_${year}${firstOnly === "true" ? "_firstOnly" : ""}.xlsx`);
     }
 
+    // ===== Name
     function buscarPorNome() {
       const nome = document.getElementById('nome').value.trim();
       const prefix = document.getElementById('prefixo').value.trim();
@@ -225,15 +1275,125 @@
       const year = document.getElementById('ano').value.trim();
       const firstOnly = toggle.checked ? "true" : "false";
 
-      if (!nome) return alert('Digite um nome para buscar.');
-      if (!prefix || !year) return alert('Informe prefixo e ano.');
+      if (!nome) return toastShow("err", "Atenção", "Digite um nome para buscar.");
+      if (!prefix || !year) return toastShow("err", "Atenção", "Informe prefixo e ano.");
 
-      if (currentEventSource) { currentEventSource.close(); currentEventSource = null; }
+      showModal(`Buscando por nome`, `"${nome}" • ${prefix}/${year} • ${start}-${end}`);
+      addLog("INFO", `Buscando "${nome}" em ${prefix}/${year} (${start}-${end})…`);
 
-      showModal(`Buscando por nome "${nome}"`, `Faixa ${start}-${end}`);
       const evt = new EventSource(`/api/process/searchByName?prefix=${prefix}&start=${start}&end=${end}&year=${year}&nome=${encodeURIComponent(nome)}&firstOnly=${firstOnly}`);
-      iniciarProgresso(evt, `processos_${prefix}_${year}_nome.xlsx`);
+      iniciarProgresso(evt, `processos_${prefix}_${year}_nome${firstOnly === "true" ? "_firstOnly" : ""}.xlsx`);
     }
+
+    // ===== Tabs
+    document.querySelectorAll(".tab").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        const tab = btn.dataset.tab;
+        document.querySelectorAll(".tabPane").forEach(p => p.style.display = "none");
+        document.getElementById("tab-" + tab).style.display = "block";
+        atualizarEstadoLimpar();
+      });
+    });
+
+    // ===== History
+    const LS_KEY = "ddc_history_v1";
+    function loadHistory() {
+      try {
+        const arr = JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+        return Array.isArray(arr) ? arr : [];
+      } catch { return []; }
+    }
+    function saveHistory(arr) {
+      localStorage.setItem(LS_KEY, JSON.stringify(arr.slice(0, 8)));
+    }
+    function salvarHistorico(item) {
+      const arr = loadHistory();
+      arr.unshift({ ...item, at: new Date().toISOString() });
+      saveHistory(arr);
+      renderHistory();
+    }
+    function limparHistorico() {
+      localStorage.removeItem(LS_KEY);
+      renderHistory();
+      toastShow("ok", "Histórico limpo", "Removi as últimas consultas salvas.");
+    }
+    function renderHistory() {
+      const arr = loadHistory();
+      historyList.innerHTML = "";
+      if (!arr.length) {
+        historyList.innerHTML = `<div class="hint">Sem histórico ainda. Faça uma consulta para aparecer aqui.</div>`;
+        return;
+      }
+      arr.forEach((h, idx) => {
+        const d = new Date(h.at);
+        const when = d.toLocaleString("pt-BR");
+        const el = document.createElement("div");
+        el.className = "item";
+        el.innerHTML = `
+        <div class="meta">
+          <b>${escapeHtml(h.mode)} • ${escapeHtml(h.label)}</b>
+          <small>${escapeHtml(when)}</small>
+          <small><a class="link" data-idx="${idx}">Repetir</a> • <a class="link" data-open="${idx}">Abrir link</a></small>
+        </div>
+        <span class="pill">${escapeHtml(h.mode)}</span>
+      `;
+        historyList.appendChild(el);
+
+        el.querySelector("[data-idx]").addEventListener("click", () => repetir(h));
+        el.querySelector("[data-open]").addEventListener("click", () => window.open(h.extra || "/", "_blank"));
+      });
+    }
+    function repetir(h) {
+      if (h.mode === "Único") {
+        input.value = h.label;
+        document.querySelector('[data-tab="single"]').click();
+        toastShow("ok", "Pronto", "Preenchi o processo. Agora é só gerar.");
+      } else {
+        toastShow("ok", "Dica", "Repetir completo (lote/nome) pode ser adicionado se você quiser salvar parâmetros também.");
+      }
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+    }
+
+    // ===== Health-check Prefeitura (reflete situação real)
+    async function checarPrefeitura() {
+      const mini = document.getElementById("miniInfo");
+      try {
+        const r = await fetch("/api/health/prefeitura", { cache: "no-store" });
+        const d = await r.json();
+
+        if (d.ok) {
+          if (mini) mini.textContent = "Status do serviço: Normal";
+          // só muda o badge se não estiver processando
+          if (!modalBack.classList.contains("show")) setStatus("ok", "Pronto");
+          return;
+        }
+
+        if (mini) mini.textContent = "Status do serviço: Indisponível no momento";
+        if (!modalBack.classList.contains("show")) setStatus("warn", "Prefeitura Instável");
+      } catch {
+        if (mini) mini.textContent = "Status do serviço: Indisponível no momento";
+        if (!modalBack.classList.contains("show")) setStatus("warn", "Prefeitura Instável");
+      }
+    }
+
+    // init (sem “atropelar” o health-check)
+    renderHistory();
+    preencherFaixaPadrao();
+    atualizarEstadoLimpar();
+
+    setStatus("warn", "Verificando…");
+    const miniInit = document.getElementById("miniInfo");
+    if (miniInit) miniInit.textContent = "Status do serviço: verificando…";
+
+    checarPrefeitura();
+    setInterval(checarPrefeitura, 30000);
   </script>
+
 </body>
+
 </html>
