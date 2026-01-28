@@ -832,402 +832,318 @@
     </div>
   </div>
 
-  <script>
+<script>
+  // ===== Elements
+  const input = document.getElementById('codigo');
+  const inputBatch = document.getElementById('codigoBatch');
+  const btnOne = document.getElementById('btnOne');
+  const btnThousand = document.getElementById('btnThousand');
+  const cancelButton = document.getElementById('cancelButton');
+  const toggle = document.getElementById('firstOnlyToggle');
 
-    // ===== Elements
-    const input = document.getElementById('codigo');
-    const inputBatch = document.getElementById('codigoBatch');
-    const btnOne = document.getElementById('btnOne');
-    const btnThousand = document.getElementById('btnThousand');
-    const cancelButton = document.getElementById('cancelButton');
-    const toggle = document.getElementById('firstOnlyToggle');
+  const statusText = document.getElementById('statusText');
+  const statusDot = document.getElementById('statusDot');
 
-    const statusText = document.getElementById('statusText');
-    const statusDot = document.getElementById('statusDot');
+  const modalBack = document.getElementById('modalBack');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalSub = document.getElementById('modalSub');
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const etaText = document.getElementById('etaText');
+  const logEl = document.getElementById('log');
+  const closeBtn = document.getElementById('closeBtn');
 
-    const modalBack = document.getElementById('modalBack');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalSub = document.getElementById('modalSub');
-    const progressBar = document.getElementById('progressBar');
-    const progressText = document.getElementById('progressText');
-    const etaText = document.getElementById('etaText');
-    const logEl = document.getElementById('log');
-    const closeBtn = document.getElementById('closeBtn');
+  const historyList = document.getElementById('historyList');
 
-    const historyList = document.getElementById('historyList');
+  const toast = document.getElementById('toast');
+  const toastTitle = document.getElementById('toastTitle');
+  const toastMsg = document.getElementById('toastMsg');
+  const toastIcon = document.getElementById('toastIcon');
 
-    const toast = document.getElementById('toast');
-    const toastTitle = document.getElementById('toastTitle');
-    const toastMsg = document.getElementById('toastMsg');
-    const toastIcon = document.getElementById('toastIcon');
+  const limparBtns = Array.from(document.querySelectorAll(".btnLimpar"));
 
-    const limparBtns = Array.from(document.querySelectorAll(".btnLimpar"));
+  let currentEventSource = null;
+  let modalLock = false;
 
-    let currentEventSource = null;
-    let modalLock = false;
+  // ===== Helpers
+  function setStatus(kind, text) {
+    statusText.textContent = text;
+    if (kind === "ok") {
+      statusDot.style.background = "var(--ok)";
+      statusDot.style.boxShadow = "0 0 0 4px rgba(22,163,74,.12)";
+    } else if (kind === "warn") {
+      statusDot.style.background = "var(--warn)";
+      statusDot.style.boxShadow = "0 0 0 4px rgba(217,119,6,.12)";
+    } else if (kind === "err") {
+      statusDot.style.background = "var(--danger)";
+      statusDot.style.boxShadow = "0 0 0 4px rgba(220,38,38,.12)";
+    } else {
+      statusDot.style.background = "var(--brand)";
+      statusDot.style.boxShadow = "0 0 0 4px rgba(37,99,235,.14)";
+    }
+  }
 
-    // ===== Helpers
-    function setStatus(kind, text) {
-      statusText.textContent = text;
-      if (kind === "ok") {
-        statusDot.style.background = "var(--ok)";
-        statusDot.style.boxShadow = "0 0 0 4px rgba(22,163,74,.12)";
-      } else if (kind === "warn") {
-        statusDot.style.background = "var(--warn)";
-        statusDot.style.boxShadow = "0 0 0 4px rgba(217,119,6,.12)";
-      } else if (kind === "err") {
-        statusDot.style.background = "var(--danger)";
-        statusDot.style.boxShadow = "0 0 0 4px rgba(220,38,38,.12)";
-      } else {
-        statusDot.style.background = "var(--brand)";
-        statusDot.style.boxShadow = "0 0 0 4px rgba(37,99,235,.14)";
-      }
+  function toastShow(kind, title, msg) {
+    toast.classList.toggle("err", kind === "err");
+    toastIcon.textContent = kind === "err" ? "!" : "✓";
+    toastTitle.textContent = title;
+    toastMsg.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toast.classList.remove("show"), 3200);
+  }
+
+  function setSpinner(running) {
+    const spin = document.getElementById("spin");
+    if (!spin) return;
+    spin.style.display = running ? "inline-block" : "none";
+  }
+
+  // ✅ FINALIZA MODAL (para spinner, libera fechar, desabilita cancelar)
+  // ✅ E AQUI é onde o BADGE (status do topo) MUDA
+  function finalizarModal(kind, title, subtitle) {
+    setSpinner(false);
+
+    modalTitle.textContent = title;
+    modalSub.textContent = subtitle || "";
+
+    // após finalizado, não faz sentido cancelar
+    cancelButton.disabled = true;
+
+    // libera "Fechar"
+    unlockModal();
+
+    // status do topo só muda aqui (concluiu/falhou)
+    if (kind === "ok") setStatus("ok", "Concluído");
+    else if (kind === "warn") setStatus("warn", "Instável");
+    else if (kind === "err") setStatus("err", "Erro");
+
+    // miniInfo pode refletir estado final também
+    const mini = document.getElementById("miniInfo");
+    if (mini) {
+      if (kind === "ok") mini.textContent = "Status do serviço: Normal";
+      else if (kind === "warn") mini.textContent = "Status do serviço: Indisponível no momento";
+      else mini.textContent = "Status do serviço: Erro";
+    }
+  }
+
+  function addLog(tag, msg) {
+    const line = document.createElement("div");
+    line.className = "l";
+    const t = document.createElement("span");
+    t.className = "tag " + (tag === "OK" ? "ok" : tag === "WARN" ? "warn" : tag === "ERR" ? "err" : "");
+    t.textContent = tag;
+    const m = document.createElement("div");
+    m.className = "msg";
+    m.textContent = msg;
+    line.appendChild(t);
+    line.appendChild(m);
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function resetModal() {
+    progressBar.style.width = "0%";
+    progressText.textContent = "0%";
+    etaText.textContent = "ETA: —";
+    logEl.innerHTML = "";
+    addLog("INFO", "Aguardando início…");
+  }
+
+  function showModal(title, subtitle) {
+    modalTitle.textContent = title;
+    modalSub.textContent = subtitle || "";
+    resetModal();
+    modalBack.classList.add("show");
+    modalBack.setAttribute("aria-hidden", "false");
+    modalLock = true;
+    closeBtn.disabled = true;
+    cancelButton.disabled = false;
+    btnOne.disabled = true;
+    if (btnThousand) btnThousand.disabled = true;
+
+    // ✅ NÃO muda o status do topo aqui (só no finalizarModal)
+    // setStatus("warn", "Processando");
+
+    // miniInfo pode informar que está processando sem mexer no badge
+    const mini = document.getElementById("miniInfo");
+    if (mini) mini.textContent = "Status do serviço: processando…";
+
+    setSpinner(true);
+  }
+
+  function fecharModal() {
+    if (modalLock) return;
+    modalBack.classList.remove("show");
+    modalBack.setAttribute("aria-hidden", "true");
+    btnOne.disabled = false;
+    if (btnThousand) btnThousand.disabled = false;
+
+    // ✅ NÃO chama checarPrefeitura aqui, pra não “atropelar” o status do topo
+    // checarPrefeitura().catch(() => {});
+  }
+
+  function unlockModal() {
+    modalLock = false;
+    closeBtn.disabled = false;
+  }
+
+  function formatarProcessoInput(el) {
+    el.addEventListener('input', e => {
+      let v = e.target.value.replace(/\D/g, '');
+      if (v.length > 3 && v.length <= 9) v = v.replace(/^(\d{3})(\d+)/, '$1/$2');
+      else if (v.length > 9) v = v.replace(/^(\d{3})(\d{6})(\d+)/, '$1/$2/$3');
+      e.target.value = v;
+    });
+  }
+  formatarProcessoInput(input);
+  formatarProcessoInput(inputBatch);
+
+  function limparCampos() {
+    const abaAtiva = document.querySelector(".tab.active")?.dataset.tab;
+
+    if (abaAtiva === "single") input.value = "";
+    if (abaAtiva === "batch") inputBatch.value = "";
+
+    if (abaAtiva === "name") {
+      document.getElementById('nome').value = "";
+      document.getElementById('prefixo').value = "";
+      document.getElementById('inicio').value = "";
+      document.getElementById('fim').value = "";
+      document.getElementById('ano').value = "";
     }
 
-    function toastShow(kind, title, msg) {
-      toast.classList.toggle("err", kind === "err");
-      toastIcon.textContent = kind === "err" ? "!" : "✓";
-      toastTitle.textContent = title;
-      toastMsg.textContent = msg;
-      toast.classList.add("show");
-      clearTimeout(toast._t);
-      toast._t = setTimeout(() => toast.classList.remove("show"), 3200);
+    atualizarEstadoLimpar();
+    toastShow("ok", "Limpo", "Campos da aba atual foram limpos.");
+  }
+
+  function atualizarEstadoLimpar() {
+    const abaAtiva = document.querySelector(".tab.active")?.dataset.tab;
+    let temConteudo = false;
+
+    if (abaAtiva === "single") {
+      temConteudo = input.value.trim().length > 0;
+    } else if (abaAtiva === "batch") {
+      temConteudo = inputBatch.value.trim().length > 0;
+    } else if (abaAtiva === "name") {
+      temConteudo = Boolean(
+        document.getElementById('nome').value.trim() ||
+        document.getElementById('prefixo').value.trim() ||
+        document.getElementById('inicio').value.trim() ||
+        document.getElementById('fim').value.trim() ||
+        document.getElementById('ano').value.trim()
+      );
     }
 
-    function addLog(tag, msg) {
-      const line = document.createElement("div");
-      line.className = "l";
-      const t = document.createElement("span");
-      t.className = "tag " + (tag === "OK" ? "ok" : tag === "WARN" ? "warn" : tag === "ERR" ? "err" : "");
-      t.textContent = tag;
-      const m = document.createElement("div");
-      m.className = "msg";
-      m.textContent = msg;
-      line.appendChild(t);
-      line.appendChild(m);
-      logEl.appendChild(line);
-      logEl.scrollTop = logEl.scrollHeight;
+    limparBtns.forEach(btn => btn.disabled = !temConteudo);
+  }
+
+  [
+    input,
+    inputBatch,
+    document.getElementById('nome'),
+    document.getElementById('prefixo'),
+    document.getElementById('inicio'),
+    document.getElementById('fim'),
+    document.getElementById('ano'),
+  ].forEach(el => el?.addEventListener("input", atualizarEstadoLimpar));
+
+  function copiarDoUnico() {
+    inputBatch.value = input.value;
+    toastShow("ok", "Copiado", "Campo de lote preenchido com o mesmo valor.");
+  }
+
+  function preencherFaixaPadrao() {
+    document.getElementById('prefixo').value = "010";
+    document.getElementById('inicio').value = 1;
+    document.getElementById('fim').value = 1000;
+    document.getElementById('ano').value = new Date().getFullYear();
+    toastShow("ok", "Faixa", "Preenchi uma faixa padrão.");
+  }
+
+  async function baixarArquivo(url, nome) {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error("Falha ao baixar o arquivo.");
+    const blob = await resp.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function extrairDadosCodigo(codigo) {
+    const limpo = codigo.replace(/\D/g, '');
+    const prefix = limpo.substring(0, 3);
+    const num = parseInt(limpo.substring(3, 9), 10);
+    const year = limpo.slice(-4);
+    return { prefix, num, year };
+  }
+
+  // ✅ CANCELAR não fecha modal sozinho (fica com estado final)
+  function cancelarBusca() {
+    cancelButton.disabled = true;
+    addLog("WARN", "Cancelando busca…");
+
+    if (currentEventSource) {
+      currentEventSource.close();
+      currentEventSource = null;
     }
 
-    function resetModal() {
-      progressBar.style.width = "0%";
-      progressText.textContent = "0%";
-      etaText.textContent = "ETA: —";
-      logEl.innerHTML = "";
-      addLog("INFO", "Aguardando início…");
-    }
+    fetch('/api/cancel', { method: 'POST' }).catch(() => {});
 
-    function showModal(title, subtitle) {
-      modalTitle.textContent = title;
-      modalSub.textContent = subtitle || "";
-      resetModal();
-      modalBack.classList.add("show");
-      modalBack.setAttribute("aria-hidden", "false");
-      modalLock = true;
-      closeBtn.disabled = true;
-      cancelButton.disabled = false;
-      btnOne.disabled = true;
-      if (btnThousand) btnThousand.disabled = true;
-      setStatus("warn", "Processando");
-    }
+    progressText.textContent = "Cancelado";
+    etaText.textContent = "ETA: —";
 
-    function fecharModal() {
-      if (modalLock) return;
-      modalBack.classList.remove("show");
-      modalBack.setAttribute("aria-hidden", "true");
-      btnOne.disabled = false;
-      if (btnThousand) btnThousand.disabled = false;
-      // status volta pro que o health-check indicar (ou "Pronto" se estiver ok)
-      checarPrefeitura().catch(() => { });
-    }
+    finalizarModal("warn", "Busca cancelada", "A operação foi interrompida.");
+    toastShow("ok", "Cancelado", "Busca cancelada.");
+  }
 
-    function unlockModal() {
-      modalLock = false;
-      closeBtn.disabled = false;
-    }
+  function iniciarProgresso(evt, fileName) {
+    if (currentEventSource) currentEventSource.close();
+    currentEventSource = evt;
 
-    function formatarProcessoInput(el) {
-      el.addEventListener('input', e => {
-        let v = e.target.value.replace(/\D/g, '');
-        if (v.length > 3 && v.length <= 9) v = v.replace(/^(\d{3})(\d+)/, '$1/$2');
-        else if (v.length > 9) v = v.replace(/^(\d{3})(\d{6})(\d+)/, '$1/$2/$3');
-        e.target.value = v;
-      });
-    }
-    formatarProcessoInput(input);
-    formatarProcessoInput(inputBatch);
+    const start = Date.now();
+    addLog("INFO", "Conexão estabelecida. Iniciando busca…");
 
-    // function preencherExemplo() {
-    //   input.value = "010/002005/2025";
-    //   inputBatch.value = input.value;
-    //   toastShow("ok", "Exemplo", "Preenchi um exemplo no campo.");
-    // }
+    evt.addEventListener('progress', e => {
+      const { percent } = JSON.parse(e.data);
+      progressBar.style.width = `${percent}%`;
+      progressText.textContent = `${percent}%`;
 
-    function limparCampos() {
-      const abaAtiva = document.querySelector(".tab.active")?.dataset.tab;
+      const elapsed = (Date.now() - start) / 1000;
+      const eta = percent > 0 ? (elapsed / percent) * (100 - percent) : 0;
+      const min = Math.floor(eta / 60), sec = Math.floor(eta % 60);
+      etaText.textContent = percent >= 100 ? "ETA: —" : `ETA: ~${min}m ${sec}s`;
+    });
 
-      if (abaAtiva === "single") {
-        input.value = "";
-      }
+    // ✅ Seu backend manda event: "error" com { warning: ... }
+    // Esse listener pega o warning SEM confundir com erro real do EventSource (porque tem e.data)
+    evt.addEventListener('error', e => {
+      if (!e?.data) return; // erro real do EventSource vai cair no evt.onerror
 
-      if (abaAtiva === "batch") {
-        inputBatch.value = "";
-      }
-
-      if (abaAtiva === "name") {
-        document.getElementById('nome').value = "";
-        document.getElementById('prefixo').value = "";
-        document.getElementById('inicio').value = "";
-        document.getElementById('fim').value = "";
-        document.getElementById('ano').value = "";
-      }
-
-      atualizarEstadoLimpar();
-      toastShow("ok", "Limpo", "Campos da aba atual foram limpos.");
-    }
-
-    function atualizarEstadoLimpar() {
-      const abaAtiva = document.querySelector(".tab.active")?.dataset.tab;
-      let temConteudo = false;
-
-      if (abaAtiva === "single") {
-        temConteudo = input.value.trim().length > 0;
-      } else if (abaAtiva === "batch") {
-        temConteudo = inputBatch.value.trim().length > 0;
-      } else if (abaAtiva === "name") {
-        temConteudo = Boolean(
-          document.getElementById('nome').value.trim() ||
-          document.getElementById('prefixo').value.trim() ||
-          document.getElementById('inicio').value.trim() ||
-          document.getElementById('fim').value.trim() ||
-          document.getElementById('ano').value.trim()
-        );
-      }
-
-      // desabilita/habilita TODOS os botões Limpar (mas só a aba atual vai ter algo pra limpar)
-      limparBtns.forEach(btn => btn.disabled = !temConteudo);
-    }
-
-    // Atualiza automaticamente quando digita
-    [
-      input,
-      inputBatch,
-      document.getElementById('nome'),
-      document.getElementById('prefixo'),
-      document.getElementById('inicio'),
-      document.getElementById('fim'),
-      document.getElementById('ano'),
-    ].forEach(el => el?.addEventListener("input", atualizarEstadoLimpar));
-
-
-    function copiarDoUnico() {
-      inputBatch.value = input.value;
-      toastShow("ok", "Copiado", "Campo de lote preenchido com o mesmo valor.");
-    }
-
-    function preencherFaixaPadrao() {
-      document.getElementById('prefixo').value = "010";
-      document.getElementById('inicio').value = 1;
-      document.getElementById('fim').value = 1000;
-      document.getElementById('ano').value = new Date().getFullYear();
-      toastShow("ok", "Faixa", "Preenchi uma faixa padrão.");
-    }
-
-    async function baixarArquivo(url, nome) {
-      const resp = await fetch(url);
-      if (!resp.ok) throw new Error("Falha ao baixar o arquivo.");
-      const blob = await resp.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = nome;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(a.href);
-    }
-
-    function extrairDadosCodigo(codigo) {
-      const limpo = codigo.replace(/\D/g, '');
-      const prefix = limpo.substring(0, 3);
-      const num = parseInt(limpo.substring(3, 9), 10);
-      const year = limpo.slice(-4);
-      return { prefix, num, year };
-    }
-
-    function cancelarBusca() {
-      cancelButton.disabled = true;
-      addLog("WARN", "Cancelando busca…");
-      if (currentEventSource) {
-        currentEventSource.close();
-        currentEventSource = null;
-      }
-      fetch('/api/cancel', { method: 'POST' }).catch(() => { });
-      progressText.textContent = "Cancelando…";
-      etaText.textContent = "ETA: —";
-      unlockModal();
-      setTimeout(fecharModal, 900);
-      toastShow("ok", "Cancelado", "Busca cancelada.");
-    }
-
-    function iniciarProgresso(evt, fileName) {
-      if (currentEventSource) currentEventSource.close();
-      currentEventSource = evt;
-
-      const start = Date.now();
-      addLog("INFO", "Conexão estabelecida. Iniciando busca…");
-
-      evt.addEventListener('progress', e => {
-        const { percent } = JSON.parse(e.data);
-        progressBar.style.width = `${percent}%`;
-        progressText.textContent = `${percent}%`;
-        const elapsed = (Date.now() - start) / 1000;
-        const eta = percent > 0 ? (elapsed / percent) * (100 - percent) : 0;
-        const min = Math.floor(eta / 60), sec = Math.floor(eta % 60);
-        etaText.textContent = percent >= 100 ? "ETA: —" : `ETA: ~${min}m ${sec}s`;
-      });
-
-      // backend envia: event: warn
-      evt.addEventListener('warn', e => {
-        try {
-          const data = JSON.parse(e.data);
-          const msg = data.warning || "Instabilidade na conexão.";
-          addLog("WARN", msg);
-        } catch {
-          addLog("WARN", "Instabilidade na conexão.");
-        }
-
-        // Reflete no topo (sem atropelar "Processando")
-        const mini = document.getElementById("miniInfo");
-        if (mini) mini.textContent = "Status do serviço: instável";
-        if (!modalBack.classList.contains("show")) {
-          setStatus("warn", "Prefeitura instável");
-        }
-      });
-
-      evt.addEventListener('done', async e => {
+      try {
         const data = JSON.parse(e.data);
-        evt.close(); currentEventSource = null;
-
-        if (data.error) {
-          addLog("ERR", data.error);
-
-          const msgLower = String(data.error || "").toLowerCase();
-          const mini = document.getElementById("miniInfo");
-
-          const parecePrefeitura =
-            msgLower.includes("prefeitura") ||
-            msgLower.includes("conectar") ||
-            msgLower.includes("conex") ||
-            msgLower.includes("timeout") ||
-            msgLower.includes("indispon") ||
-            msgLower.includes("demor") ||
-            msgLower.includes("responder");
-
-          if (parecePrefeitura) {
-            setStatus("warn", "Prefeitura indisponível");
-            if (mini) mini.textContent = "Status do serviço: Indisponível no momento";
-          } else {
-            setStatus("err", "Erro");
-            if (mini) mini.textContent = "Status do serviço: erro";
-          }
-
-          progressBar.style.width = "100%";
-          progressText.textContent = "Erro";
-          etaText.textContent = "ETA: —";
-          unlockModal();
-          toastShow("err", "Falhou", data.error);
-          return;
-        }
-
-        progressBar.style.width = "100%";
-        progressText.textContent = "100%";
-        etaText.textContent = "ETA: —";
-        addLog("OK", "Relatório gerado. Iniciando download…");
-
-        try {
-          const fileUrl = data.file.startsWith("http") ? data.file : `${window.location.origin}${data.file}`;
-          await baixarArquivo(fileUrl, fileName);
-          addLog("OK", "Download iniciado no navegador.");
-          toastShow("ok", "Download", "Seu Excel foi baixado.");
-          salvarHistorico({ mode: "Lote/Nome", label: fileName, extra: data.file });
-
-          setStatus("ok", "Concluído");
-          const mini = document.getElementById("miniInfo");
-          if (mini) mini.textContent = "Status do serviço: Normal";
-        } catch (err) {
-          addLog("ERR", "Erro ao baixar: " + err.message);
-          setStatus("err", "Erro");
-          const mini = document.getElementById("miniInfo");
-          if (mini) mini.textContent = "Status do serviço: erro";
-          toastShow("err", "Download falhou", err.message);
-        }
-
-        unlockModal();
-      });
-
-      evt.onerror = () => {
-        addLog("WARN", "Conexão perdida.");
-        evt.close(); currentEventSource = null;
-
-        const mini = document.getElementById("miniInfo");
-        if (mini) mini.textContent = "Status do serviço: instável";
-
-        // Não atropelar "Processando" (mas aqui normalmente já é durante processamento)
-        setStatus("warn", "Prefeitura instável");
-
-        unlockModal();
-        toastShow("err", "Conexão perdida", "Tente novamente. O site da prefeitura pode estar instável.");
-      };
-    }
-
-    function abrirExports() {
-      window.open("/exports", "_blank");
-    }
-
-    async function copiarLog() {
-      const text = Array.from(logEl.querySelectorAll(".l")).map(l => l.innerText).join("\n");
-      try {
-        await navigator.clipboard.writeText(text);
-        toastShow("ok", "Copiado", "Log copiado para a área de transferência.");
+        const msg = data.warning || "Instabilidade na conexão.";
+        addLog("WARN", msg);
       } catch {
-        toastShow("err", "Falhou", "Não consegui copiar automaticamente.");
+        addLog("WARN", "Instabilidade na conexão.");
       }
-    }
 
-    // ===== Single
-    async function buscarUnico() {
-      const codigo = input.value.trim();
-      if (!codigo) return toastShow("err", "Atenção", "Digite o número do processo.");
-      const firstOnly = toggle.checked ? "true" : "false";
+      const mini = document.getElementById("miniInfo");
+      if (mini) mini.textContent = "Status do serviço: Instável";
+    });
 
-      showModal("Buscando processo único", codigo);
-      addLog("INFO", `Consultando ${codigo}…`);
+    evt.addEventListener('done', async e => {
+      const data = JSON.parse(e.data);
+      evt.close(); currentEventSource = null;
 
-      try {
-        const resp = await fetch(`/api/process?numero=${encodeURIComponent(codigo)}&firstOnly=${firstOnly}`);
-        const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) throw new Error(data.error || "Erro na busca.");
+      if (data.error) {
+        addLog("ERR", data.error);
 
-        const fileUrl = data.file.startsWith("http") ? data.file : `${window.location.origin}${data.file}`;
-        addLog("OK", "Processo encontrado. Iniciando download…");
-        await baixarArquivo(fileUrl, `processo_${codigo}.xlsx`);
-
-        addLog("OK", "Download iniciado no navegador.");
-        salvarHistorico({ mode: "Único", label: codigo, extra: data.file });
-
-        setStatus("ok", "Concluído");
-        const mini = document.getElementById("miniInfo");
-        if (mini) mini.textContent = "Status do serviço: Normal";
-
-        toastShow("ok", "Pronto", "Relatório do processo baixado.");
-
-        progressBar.style.width = "100%";
-        progressText.textContent = "100%";
-      } catch (err) {
-        addLog("ERR", err.message);
-
-        const msgLower = String(err.message || "").toLowerCase();
-        const mini = document.getElementById("miniInfo");
+        const msgLower = String(data.error || "").toLowerCase();
         const parecePrefeitura =
           msgLower.includes("prefeitura") ||
           msgLower.includes("conectar") ||
@@ -1237,102 +1153,205 @@
           msgLower.includes("demor") ||
           msgLower.includes("responder");
 
-        if (parecePrefeitura) {
-          setStatus("warn", "Prefeitura Indisponível");
-          if (mini) mini.textContent = "Status do serviço: Indisponível no momento";
-        } else {
-          setStatus("err", "Erro");
-          if (mini) mini.textContent = "Status do serviço: erro";
-        }
+        progressBar.style.width = "100%";
+        progressText.textContent = "Erro";
+        etaText.textContent = "ETA: —";
 
-        toastShow("err", "Falhou", err.message);
-      } finally {
-        unlockModal();
-      }
-    }
+        finalizarModal(
+          parecePrefeitura ? "warn" : "err",
+          parecePrefeitura ? "Prefeitura indisponível" : "Falha na busca",
+          data.error
+        );
 
-    // ===== Batch
-    function buscarMil() {
-      const codigo = (inputBatch.value || input.value).trim();
-      if (!codigo) return toastShow("err", "Atenção", "Digite o número base do processo.");
-      const { prefix, num, year } = extrairDadosCodigo(codigo);
-      const start = num, end = num + 999;
-      const firstOnly = toggle.checked ? "true" : "false";
-
-      showModal("Buscando 1000 processos", `Faixa ${start}-${end} • ${prefix}/${year}`);
-      addLog("INFO", `Iniciando lote ${prefix}/${year} (${start}-${end})…`);
-
-      const evt = new EventSource(`/api/process/batch?prefix=${prefix}&start=${start}&end=${end}&year=${year}&firstOnly=${firstOnly}`);
-      iniciarProgresso(evt, `processos_${prefix}_${year}${firstOnly === "true" ? "_firstOnly" : ""}.xlsx`);
-    }
-
-    // ===== Name
-    function buscarPorNome() {
-      const nome = document.getElementById('nome').value.trim();
-      const prefix = document.getElementById('prefixo').value.trim();
-      const start = parseInt(document.getElementById('inicio').value) || 1;
-      const end = parseInt(document.getElementById('fim').value) || 1000;
-      const year = document.getElementById('ano').value.trim();
-      const firstOnly = toggle.checked ? "true" : "false";
-
-      if (!nome) return toastShow("err", "Atenção", "Digite um nome para buscar.");
-      if (!prefix || !year) return toastShow("err", "Atenção", "Informe prefixo e ano.");
-
-      showModal(`Buscando por nome`, `"${nome}" • ${prefix}/${year} • ${start}-${end}`);
-      addLog("INFO", `Buscando "${nome}" em ${prefix}/${year} (${start}-${end})…`);
-
-      const evt = new EventSource(`/api/process/searchByName?prefix=${prefix}&start=${start}&end=${end}&year=${year}&nome=${encodeURIComponent(nome)}&firstOnly=${firstOnly}`);
-      iniciarProgresso(evt, `processos_${prefix}_${year}_nome${firstOnly === "true" ? "_firstOnly" : ""}.xlsx`);
-    }
-
-    // ===== Tabs
-    document.querySelectorAll(".tab").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-
-        const tab = btn.dataset.tab;
-        document.querySelectorAll(".tabPane").forEach(p => p.style.display = "none");
-        document.getElementById("tab-" + tab).style.display = "block";
-        atualizarEstadoLimpar();
-      });
-    });
-
-    // ===== History
-    const LS_KEY = "ddc_history_v1";
-    function loadHistory() {
-      try {
-        const arr = JSON.parse(localStorage.getItem(LS_KEY) || "[]");
-        return Array.isArray(arr) ? arr : [];
-      } catch { return []; }
-    }
-    function saveHistory(arr) {
-      localStorage.setItem(LS_KEY, JSON.stringify(arr.slice(0, 8)));
-    }
-    function salvarHistorico(item) {
-      const arr = loadHistory();
-      arr.unshift({ ...item, at: new Date().toISOString() });
-      saveHistory(arr);
-      renderHistory();
-    }
-    function limparHistorico() {
-      localStorage.removeItem(LS_KEY);
-      renderHistory();
-      toastShow("ok", "Histórico limpo", "Removi as últimas consultas salvas.");
-    }
-    function renderHistory() {
-      const arr = loadHistory();
-      historyList.innerHTML = "";
-      if (!arr.length) {
-        historyList.innerHTML = `<div class="hint">Sem histórico ainda. Faça uma consulta para aparecer aqui.</div>`;
+        toastShow("err", "Falhou", data.error);
         return;
       }
-      arr.forEach((h, idx) => {
-        const d = new Date(h.at);
-        const when = d.toLocaleString("pt-BR");
-        const el = document.createElement("div");
-        el.className = "item";
-        el.innerHTML = `
+
+      progressBar.style.width = "100%";
+      progressText.textContent = "100%";
+      etaText.textContent = "ETA: —";
+      addLog("OK", "Relatório gerado. Iniciando download…");
+
+      try {
+        const fileUrl = data.file.startsWith("http") ? data.file : `${window.location.origin}${data.file}`;
+        await baixarArquivo(fileUrl, fileName);
+
+        addLog("OK", "Download iniciado no navegador.");
+        toastShow("ok", "Download", "Seu Excel foi baixado.");
+        salvarHistorico({ mode: "Lote/Nome", label: fileName, extra: data.file });
+
+        finalizarModal("ok", "Concluído ✅", "Relatório gerado e download iniciado.");
+      } catch (err) {
+        addLog("ERR", "Erro ao baixar: " + err.message);
+        toastShow("err", "Download falhou", err.message);
+
+        // ✅ aqui também FINALIZA o modal (antes você só dava unlock e ficava feio/travado)
+        finalizarModal("err", "Concluído, mas falhou no download", err.message);
+      }
+    });
+
+    // erro real do EventSource (sem data)
+    evt.onerror = () => {
+      addLog("WARN", "Conexão perdida.");
+      evt.close(); currentEventSource = null;
+
+      progressText.textContent = "Erro";
+      etaText.textContent = "ETA: —";
+
+      finalizarModal("warn", "Conexão perdida", "O site da prefeitura pode estar instável.");
+      toastShow("err", "Conexão perdida", "Tente novamente. O site da prefeitura pode estar instável.");
+    };
+  }
+
+  function abrirExports() {
+    window.open("/exports", "_blank");
+  }
+
+  async function copiarLog() {
+    const text = Array.from(logEl.querySelectorAll(".l")).map(l => l.innerText).join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toastShow("ok", "Copiado", "Log copiado para a área de transferência.");
+    } catch {
+      toastShow("err", "Falhou", "Não consegui copiar automaticamente.");
+    }
+  }
+
+  // ===== Single
+  async function buscarUnico() {
+    const codigo = input.value.trim();
+    if (!codigo) return toastShow("err", "Atenção", "Digite o número do processo.");
+    const firstOnly = toggle.checked ? "true" : "false";
+
+    showModal("Buscando processo único", codigo);
+    addLog("INFO", `Consultando ${codigo}…`);
+
+    try {
+      const resp = await fetch(`/api/process?numero=${encodeURIComponent(codigo)}&firstOnly=${firstOnly}`);
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.error || "Erro na busca.");
+
+      const fileUrl = data.file.startsWith("http") ? data.file : `${window.location.origin}${data.file}`;
+      addLog("OK", "Processo encontrado. Iniciando download…");
+      await baixarArquivo(fileUrl, `processo_${codigo}.xlsx`);
+
+      addLog("OK", "Download iniciado no navegador.");
+      salvarHistorico({ mode: "Único", label: codigo, extra: data.file });
+
+      progressBar.style.width = "100%";
+      progressText.textContent = "100%";
+      etaText.textContent = "ETA: —";
+
+      toastShow("ok", "Pronto", "Relatório do processo baixado.");
+      finalizarModal("ok", "Concluído ✅", "Relatório gerado e download iniciado.");
+    } catch (err) {
+      addLog("ERR", err.message);
+
+      const msgLower = String(err.message || "").toLowerCase();
+      const parecePrefeitura =
+        msgLower.includes("prefeitura") ||
+        msgLower.includes("conectar") ||
+        msgLower.includes("conex") ||
+        msgLower.includes("timeout") ||
+        msgLower.includes("indispon") ||
+        msgLower.includes("demor") ||
+        msgLower.includes("responder");
+
+      progressBar.style.width = "100%";
+      progressText.textContent = "Erro";
+      etaText.textContent = "ETA: —";
+
+      toastShow("err", "Falhou", err.message);
+      finalizarModal(
+        parecePrefeitura ? "warn" : "err",
+        parecePrefeitura ? "Prefeitura indisponível" : "Erro",
+        err.message
+      );
+    }
+  }
+
+  // ===== Batch
+  function buscarMil() {
+    const codigo = (inputBatch.value || input.value).trim();
+    if (!codigo) return toastShow("err", "Atenção", "Digite o número base do processo.");
+    const { prefix, num, year } = extrairDadosCodigo(codigo);
+    const start = num, end = num + 999;
+    const firstOnly = toggle.checked ? "true" : "false";
+
+    showModal("Buscando 1000 processos", `Faixa ${start}-${end} • ${prefix}/${year}`);
+    addLog("INFO", `Iniciando lote ${prefix}/${year} (${start}-${end})…`);
+
+    const evt = new EventSource(`/api/process/batch?prefix=${prefix}&start=${start}&end=${end}&year=${year}&firstOnly=${firstOnly}`);
+    iniciarProgresso(evt, `processos_${prefix}_${year}${firstOnly === "true" ? "_firstOnly" : ""}.xlsx`);
+  }
+
+  // ===== Name
+  function buscarPorNome() {
+    const nome = document.getElementById('nome').value.trim();
+    const prefix = document.getElementById('prefixo').value.trim();
+    const start = parseInt(document.getElementById('inicio').value) || 1;
+    const end = parseInt(document.getElementById('fim').value) || 1000;
+    const year = document.getElementById('ano').value.trim();
+    const firstOnly = toggle.checked ? "true" : "false";
+
+    if (!nome) return toastShow("err", "Atenção", "Digite um nome para buscar.");
+    if (!prefix || !year) return toastShow("err", "Atenção", "Informe prefixo e ano.");
+
+    showModal(`Buscando por nome`, `"${nome}" • ${prefix}/${year} • ${start}-${end}`);
+    addLog("INFO", `Buscando "${nome}" em ${prefix}/${year} (${start}-${end})…`);
+
+    const evt = new EventSource(`/api/process/searchByName?prefix=${prefix}&start=${start}&end=${end}&year=${year}&nome=${encodeURIComponent(nome)}&firstOnly=${firstOnly}`);
+    iniciarProgresso(evt, `processos_${prefix}_${year}_nome${firstOnly === "true" ? "_firstOnly" : ""}.xlsx`);
+  }
+
+  // ===== Tabs
+  document.querySelectorAll(".tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      const tab = btn.dataset.tab;
+      document.querySelectorAll(".tabPane").forEach(p => p.style.display = "none");
+      document.getElementById("tab-" + tab).style.display = "block";
+      atualizarEstadoLimpar();
+    });
+  });
+
+  // ===== History
+  const LS_KEY = "ddc_history_v1";
+  function loadHistory() {
+    try {
+      const arr = JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+      return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+  }
+  function saveHistory(arr) {
+    localStorage.setItem(LS_KEY, JSON.stringify(arr.slice(0, 8)));
+  }
+  function salvarHistorico(item) {
+    const arr = loadHistory();
+    arr.unshift({ ...item, at: new Date().toISOString() });
+    saveHistory(arr);
+    renderHistory();
+  }
+  function limparHistorico() {
+    localStorage.removeItem(LS_KEY);
+    renderHistory();
+    toastShow("ok", "Histórico limpo", "Removi as últimas consultas salvas.");
+  }
+  function renderHistory() {
+    const arr = loadHistory();
+    historyList.innerHTML = "";
+    if (!arr.length) {
+      historyList.innerHTML = `<div class="hint">Sem histórico ainda. Faça uma consulta para aparecer aqui.</div>`;
+      return;
+    }
+    arr.forEach((h, idx) => {
+      const d = new Date(h.at);
+      const when = d.toLocaleString("pt-BR");
+      const el = document.createElement("div");
+      el.className = "item";
+      el.innerHTML = `
         <div class="meta">
           <b>${escapeHtml(h.mode)} • ${escapeHtml(h.label)}</b>
           <small>${escapeHtml(when)}</small>
@@ -1340,59 +1359,60 @@
         </div>
         <span class="pill">${escapeHtml(h.mode)}</span>
       `;
-        historyList.appendChild(el);
+      historyList.appendChild(el);
 
-        el.querySelector("[data-idx]").addEventListener("click", () => repetir(h));
-        el.querySelector("[data-open]").addEventListener("click", () => window.open(h.extra || "/", "_blank"));
-      });
+      el.querySelector("[data-idx]").addEventListener("click", () => repetir(h));
+      el.querySelector("[data-open]").addEventListener("click", () => window.open(h.extra || "/", "_blank"));
+    });
+  }
+  function repetir(h) {
+    if (h.mode === "Único") {
+      input.value = h.label;
+      document.querySelector('[data-tab="single"]').click();
+      toastShow("ok", "Pronto", "Preenchi o processo. Agora é só gerar.");
+    } else {
+      toastShow("ok", "Dica", "Repetir completo (lote/nome) pode ser adicionado se você quiser salvar parâmetros também.");
     }
-    function repetir(h) {
-      if (h.mode === "Único") {
-        input.value = h.label;
-        document.querySelector('[data-tab="single"]').click();
-        toastShow("ok", "Pronto", "Preenchi o processo. Agora é só gerar.");
-      } else {
-        toastShow("ok", "Dica", "Repetir completo (lote/nome) pode ser adicionado se você quiser salvar parâmetros também.");
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+  }
+
+  // ===== Health-check Prefeitura
+  // ✅ NÃO altera o BADGE (status do topo)
+  // ✅ Só atualiza o miniInfo quando NÃO estiver processando
+  async function checarPrefeitura() {
+    const mini = document.getElementById("miniInfo");
+    if (modalBack.classList.contains("show")) return; // não mexe durante execução
+
+    try {
+      const r = await fetch("/api/health/prefeitura", { cache: "no-store" });
+      const d = await r.json();
+
+      if (d.ok) {
+        if (mini) mini.textContent = "Status do serviço: Normal";
+        return;
       }
+
+      if (mini) mini.textContent = "Status do serviço: Indisponível no momento";
+    } catch {
+      if (mini) mini.textContent = "Status do serviço: Indisponível no momento";
     }
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
-    }
+  }
 
-    // ===== Health-check Prefeitura (reflete situação real)
-    async function checarPrefeitura() {
-      const mini = document.getElementById("miniInfo");
-      try {
-        const r = await fetch("/api/health/prefeitura", { cache: "no-store" });
-        const d = await r.json();
+  // init
+  renderHistory();
+  preencherFaixaPadrao();
+  atualizarEstadoLimpar();
 
-        if (d.ok) {
-          if (mini) mini.textContent = "Status do serviço: Normal";
-          // só muda o badge se não estiver processando
-          if (!modalBack.classList.contains("show")) setStatus("ok", "Pronto");
-          return;
-        }
+  // estado inicial
+  setStatus("ok", "Pronto");
+  const miniInit = document.getElementById("miniInfo");
+  if (miniInit) miniInit.textContent = "Status do serviço: verificando…";
 
-        if (mini) mini.textContent = "Status do serviço: Indisponível no momento";
-        if (!modalBack.classList.contains("show")) setStatus("warn", "Prefeitura Instável");
-      } catch {
-        if (mini) mini.textContent = "Status do serviço: Indisponível no momento";
-        if (!modalBack.classList.contains("show")) setStatus("warn", "Prefeitura Instável");
-      }
-    }
-
-    // init (sem “atropelar” o health-check)
-    renderHistory();
-    preencherFaixaPadrao();
-    atualizarEstadoLimpar();
-
-    setStatus("warn", "Verificando…");
-    const miniInit = document.getElementById("miniInfo");
-    if (miniInit) miniInit.textContent = "Status do serviço: verificando…";
-
-    checarPrefeitura();
-    setInterval(checarPrefeitura, 30000);
-  </script>
+  checarPrefeitura();
+  setInterval(checarPrefeitura, 30000);
+</script>
 
 </body>
 
